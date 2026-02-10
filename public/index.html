@@ -1,206 +1,285 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark" data-lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Health Matrix – Ramadan Card</title>
+
   <style>
     :root{
-      --bg:#061426;
-      --panel:#0b1f3f;
-      --border:#1e3f7a;
-      --primary:#2aa8ff;
-      --primary2:#1b6fd6;
-      --text:#eef6ff;
-      --muted:rgba(238,246,255,.78);
+      --bg:#061426; --panel:#0b1f3f; --text:#eef6ff;
+      --muted:rgba(238,246,255,.75);
+      --accent:#2aa8ff; --accent2:#5fd3ff; --border:#1e3f7a;
+    }
+    [data-theme="light"]{
+      --bg:#f6f9fc; --panel:#ffffff; --text:#0b1f3f;
+      --muted:rgba(11,31,63,.7);
+      --accent:#1b6fd6; --accent2:#2aa8ff; --border:#d6e2f2;
     }
     body{
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       margin:24px;
-      background: radial-gradient(1200px 600px at 50% -200px,#0f2d63,#061426);
-      color: var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:radial-gradient(1200px 600px at 50% -200px,var(--accent),var(--bg));
+      color:var(--text);
     }
     .wrap{max-width:980px;margin:0 auto;display:grid;gap:14px;}
-    .top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+    .top{display:flex;align-items:center;justify-content:space-between;}
     h2{margin:0;font-size:20px;}
-    .hint{opacity:.85;font-size:13.5px;line-height:1.45;margin:0;}
+    .hint{margin:0;font-size:13.5px;opacity:.85;}
+    .toggles{display:flex;gap:8px;}
+    .toggle{
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--text);
+      border-radius:999px;
+      width:42px;height:42px;
+      font-size:14px;
+      cursor:pointer;
+      display:grid;place-items:center;
+    }
+    .toggle:hover{border-color:var(--accent);}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
     input{
-      padding:12px 14px;border-radius:12px;border:1px solid var(--border);
-      background:#0a2349;color:var(--text);min-width:280px;outline:none;
+      padding:12px 14px;border-radius:12px;
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--text);
+      min-width:260px;outline:none;
     }
-    input::placeholder{color:rgba(238,246,255,.55);}
-    button{
-      padding:12px 14px;border-radius:12px;border:0;cursor:pointer;
-      font-weight:700;color:#fff;
+    button.action{
+      padding:12px 16px;border-radius:12px;border:0;
+      cursor:pointer;font-weight:700;color:#fff;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
     }
-    .btn{background:linear-gradient(135deg,#2aa8ff,#5fd3ff);}
-    .btn2{background:linear-gradient(135deg,#1b6fd6,#2aa8ff);}
     canvas{
-      width:100%;height:auto;border-radius:18px;
-      box-shadow:0 18px 50px rgba(0,0,0,.45);
+      width:100%;
+      height:auto;
+      border-radius:18px;
+      box-shadow:0 18px 50px rgba(0,0,0,.35);
+      background:var(--panel);
     }
+    .note{font-size:12.5px;opacity:.75}
   </style>
 </head>
+
 <body>
 <div class="wrap">
+
   <div class="top">
     <div>
-      <h2>Health Matrix – Ramadan Card</h2>
-      <p class="hint">
-        Write your name → Download PNG → Share on LinkedIn<br>
-        (Image auto-downloads + caption copied)
-      </p>
+      <h2 id="title">Health Matrix – Ramadan Card</h2>
+      <p class="hint" id="hint">Write your name → Download your card</p>
+    </div>
+    <div class="toggles">
+      <button id="langToggle" class="toggle" type="button">AR</button>
+      <button id="themeToggle" class="toggle" type="button">☀️</button>
     </div>
   </div>
 
   <div class="row">
     <input id="name" placeholder="Type your name" maxlength="40" />
-    <button class="btn" id="download">Download PNG</button>
-    <button class="btn2" id="share">Share on LinkedIn</button>
+    <!-- ✅ مهم: type="button" -->
+    <button class="action" id="download" type="button">Download PNG</button>
   </div>
 
-  <canvas id="c"></canvas>
+  <canvas id="card"></canvas>
+  <div class="note" id="debug"></div>
+
 </div>
 
 <script>
 (() => {
   const W = 1080, H = 1080;
-  const COMPANY = "Health Matrix | IT Healthcare";
-  const DEFAULT_NAME = "Your Name";
 
-  const C = {
-    blue0:"#071d3a",
-    blue1:"#0b3c7a",
-    blue2:"#2aa8ff",
-    cyan:"#5fd3ff",
-    white:"#eef6ff",
-    whiteSoft:"rgba(238,246,255,.9)",
-    ink:"rgba(0,0,0,.35)"
+  // لازم تكون محلية داخل public/assets
+  const LOGO_LIGHT = "hm-logo.png";
+  const LOGO_DARK  = "white-logo.png";
+
+  const LOGO_X = 52;
+  const LOGO_Y = 44;
+  const TARGET_WIDTH = 280;
+
+  const DEFAULT_NAME_EN = "Your Name";
+  const DEFAULT_NAME_AR = "اسمك";
+
+  const TEXT = {
+    en: {
+      title: "Health Matrix – Ramadan Card",
+      hint: "Write your name → Download your card",
+      heading: "Ramadan Mubarak",
+      lines: [
+        "As we welcome the holy month of Ramadan,",
+        "we wish you peace, prosperity, and continued success.",
+        "May this season inspire reflection, compassion, and innovation",
+        "in everything we build together."
+      ]
+    },
+    ar: {
+      title: "هيلث ماتريكس – كرت رمضان",
+      hint: "اكتب اسمك ← حمّل الكرت",
+      heading: "رمضان مبارك",
+      lines: [
+        "بمناسبة حلول شهر رمضان المبارك،",
+        "نتمنى لكم شهرًا مليئًا بالسلام والبركة والنجاح،",
+        "وأن يكون هذا الشهر مصدر إلهام",
+        "للعطاء والابتكار في كل ما نبنيه معًا."
+      ]
+    }
   };
 
-  const canvas = document.getElementById("c");
-  const ctx = canvas.getContext("2d",{alpha:false});
-  canvas.width=W; canvas.height=H;
+  const canvas = document.getElementById("card");
+  const ctx = canvas.getContext("2d", { alpha: false });
+  canvas.width = W; canvas.height = H;
 
-  const nameInput=document.getElementById("name");
-  const downloadBtn=document.getElementById("download");
-  const shareBtn=document.getElementById("share");
+  const nameInput = document.getElementById("name");
+  const downloadBtn = document.getElementById("download");
+  const themeBtn = document.getElementById("themeToggle");
+  const langBtn  = document.getElementById("langToggle");
+  const debugEl  = document.getElementById("debug");
+  const root = document.documentElement;
 
-  function drawBackground(){
-    const g=ctx.createLinearGradient(0,0,0,H);
-    g.addColorStop(0,C.blue0);
-    g.addColorStop(.6,C.blue1);
-    g.addColorStop(1,"#041227");
-    ctx.fillStyle=g;
-    ctx.fillRect(0,0,W,H);
+  // ✅ Important if you ever load from CDN (safe to keep even for local):
+  const logo = new Image();
+  logo.crossOrigin = "anonymous";
 
-    // soft glow
-    const rg=ctx.createRadialGradient(W/2,H*.18,10,W/2,H*.18,W*.55);
-    rg.addColorStop(0,"rgba(95,211,255,.25)");
-    rg.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+  function updateLogo() {
+    const theme = root.getAttribute("data-theme");
+    logo.src = (theme === "dark") ? LOGO_DARK : LOGO_LIGHT;
+  }
 
-    // data waves
+  // Restore settings
+  const savedTheme = localStorage.getItem("theme") || "dark";
+  const savedLang  = localStorage.getItem("lang")  || "en";
+  root.setAttribute("data-theme", savedTheme);
+  root.setAttribute("data-lang",  savedLang);
+  themeBtn.textContent = (savedTheme === "dark") ? "☀️" : "🌙";
+  langBtn.textContent  = (savedLang === "en") ? "AR" : "EN";
+
+  updateLogo();
+
+  function colors() {
+    return root.getAttribute("data-theme") === "dark"
+      ? { bg1:"#061426", bg2:"#0b3c7a", title:"#5fd3ff", text:"#eef6ff" }
+      : { bg1:"#f6f9fc", bg2:"#dfeeff", title:"#1b6fd6", text:"#0b1f3f" };
+  }
+
+  function drawLogo() {
+    if (!(logo.complete && logo.naturalWidth > 0)) return;
+
+    const scale = TARGET_WIDTH / logo.naturalWidth;
+    const drawW = logo.naturalWidth * scale;
+    const drawH = logo.naturalHeight * scale;
+    ctx.drawImage(logo, LOGO_X, LOGO_Y, drawW, drawH);
+  }
+
+  function drawBackground(c) {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, c.bg1);
+    g.addColorStop(1, c.bg2);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // Crescent
     ctx.save();
-    ctx.globalAlpha=.35;
-    ctx.strokeStyle="rgba(95,211,255,.6)";
-    ctx.lineWidth=2;
-    for(let k=0;k<4;k++){
-      ctx.beginPath();
-      for(let x=0;x<=W;x+=20){
-        const t=x/W;
-        const y=H*(.32+k*.05)+Math.sin((t*3+k)*Math.PI)*18;
-        if(x===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
-      }
-      ctx.stroke();
-    }
+    ctx.fillStyle = c.title;
+    ctx.beginPath();
+    ctx.arc(W/2, H*0.18, 44, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    ctx.arc(W/2 + 18, H*0.18 - 6, 44, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
     ctx.restore();
 
-    // crescent
-    ctx.save();
-    const cx=W/2, cy=H*.16, R=44;
-    ctx.fillStyle=C.cyan;
-    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.fill();
-    ctx.globalCompositeOperation="destination-out";
-    ctx.beginPath(); ctx.arc(cx+18,cy-6,R,0,Math.PI*2); ctx.fill();
-    ctx.globalCompositeOperation="source-over";
-    ctx.restore();
+    drawLogo();
   }
 
-  function fitText(text,maxW,base,min){
-    let s=base;
-    while(s>=min){
-      ctx.font=`700 ${s}px Arial`;
-      if(ctx.measureText(text).width<=maxW) return s;
-      s-=2;
+  function drawText(c) {
+    const lang = root.getAttribute("data-lang");
+    const t = TEXT[lang];
+    const name = nameInput.value.trim() || (lang === "en" ? DEFAULT_NAME_EN : DEFAULT_NAME_AR);
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillStyle = c.title;
+    ctx.font = "700 64px Arial";
+    ctx.fillText(t.heading, W/2, H*0.30);
+
+    ctx.fillStyle = c.text;
+    ctx.font = (lang === "ar") ? "500 36px Arial" : "500 34px Arial";
+    let y = H*0.37;
+    for (const line of t.lines) {
+      ctx.fillText(line, W/2, y);
+      y += 46;
     }
-    return min;
+
+    ctx.font = "700 72px Arial";
+    ctx.fillText(name, W/2, H*0.885);
   }
 
-  function drawText(name){
-    const n=(name||"").trim()||DEFAULT_NAME;
+  function render() {
+    const c = colors();
+    drawBackground(c);
+    drawText(c);
 
-    ctx.textAlign="center";
-    ctx.textBaseline="middle";
-    ctx.shadowColor=C.ink;
-    ctx.shadowBlur=14;
-
-    ctx.fillStyle=C.cyan;
-    ctx.font="700 64px Arial";
-    ctx.fillText("Ramadan Mubarak",W/2,H*.30);
-
-    ctx.shadowBlur=10;
-    ctx.fillStyle=C.whiteSoft;
-    ctx.font="500 34px Arial";
-    const lines=[
-      "As we welcome the holy month of Ramadan,",
-      "we wish you peace, prosperity, and continued success.",
-      "May this season inspire reflection, compassion, and innovation",
-      "in everything we build together."
-    ];
-    let y=H*.37;
-    for(const l of lines){ ctx.fillText(l,W/2,y); y+=46; }
-
-    const nameSize=fitText(n,W*.78,74,46);
-    ctx.shadowBlur=12;
-    ctx.fillStyle=C.white;
-    ctx.font=`700 ${nameSize}px Arial`;
-    ctx.fillText(n,W/2,H*.885);
-
-    ctx.shadowBlur=8;
-    ctx.fillStyle="rgba(238,246,255,.75)";
-    ctx.font="600 30px Arial";
-    ctx.fillText(COMPANY,W/2,H*.925);
+    const lang = root.getAttribute("data-lang");
+    document.getElementById("title").textContent = TEXT[lang].title;
+    document.getElementById("hint").textContent  = TEXT[lang].hint;
+    nameInput.placeholder = (lang === "en") ? "Type your name" : "اكتب اسمك";
   }
 
-  function render(v){ drawBackground(); drawText(v); }
-  render("");
+  themeBtn.onclick = () => {
+    const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    localStorage.setItem("theme", next);
+    themeBtn.textContent = (next === "dark") ? "☀️" : "🌙";
+    updateLogo();
+    render();
+  };
 
-  nameInput.addEventListener("input",e=>render(e.target.value));
+  langBtn.onclick = () => {
+    const next = root.getAttribute("data-lang") === "en" ? "ar" : "en";
+    root.setAttribute("data-lang", next);
+    localStorage.setItem("lang", next);
+    langBtn.textContent = (next === "en") ? "AR" : "EN";
+    render();
+  };
 
-  downloadBtn.addEventListener("click",()=>{
-    canvas.toBlob(b=>{
-      const u=URL.createObjectURL(b);
-      const a=document.createElement("a");
-      a.download="health-matrix-ramadan-card.png";
-      a.href=u; a.click(); URL.revokeObjectURL(u);
-    },"image/png");
-  });
+  nameInput.addEventListener("input", render);
 
-  shareBtn.addEventListener("click",async()=>{
-    const n=(nameInput.value||"").trim()||DEFAULT_NAME;
-    const caption=
-`Ramadan Mubarak 🌙
-As we welcome the holy month of Ramadan, we wish you peace, prosperity, and continued success.
+  // ✅ Download (most compatible)
+  function downloadPNG() {
+    try {
+      // If canvas is tainted, this will throw
+      const dataUrl = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = "health-matrix-ramadan-card.png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      debugEl.textContent = "";
+    } catch (e) {
+      debugEl.textContent =
+        "Download blocked. Check logo path or CORS. Make sure logos are inside /public/assets.";
+      alert("Download failed. غالبًا مسار اللوقو غلط أو فيه CORS.");
+      console.error(e);
+    }
+  }
 
-— ${n}
-Health Matrix | IT Healthcare`;
-    try{await navigator.clipboard.writeText(caption);}catch{}
-    downloadBtn.click();
-    window.open("https://www.linkedin.com/feed/","_blank");
-    alert("Image downloaded + caption copied.\nPaste text and attach image on LinkedIn.");
-  });
+  downloadBtn.addEventListener("click", downloadPNG);
+
+  // Re-render when logo loads
+  logo.onload = render;
+  logo.onerror = () => {
+    debugEl.textContent =
+      "Logo not found. Ensure: hm-logo.png and white-logo.png";
+    render();
+  };
+
+  render();
 })();
 </script>
 </body>
