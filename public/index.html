@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Health Matrix – Ramadan Card</title>
+  <style>
+    :root{
+      --bg:#061426;
+      --panel:#0b1f3f;
+      --border:#1e3f7a;
+      --primary:#2aa8ff;
+      --primary2:#1b6fd6;
+      --text:#eef6ff;
+      --muted:rgba(238,246,255,.78);
+    }
+    body{
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      margin:24px;
+      background: radial-gradient(1200px 600px at 50% -200px,#0f2d63,#061426);
+      color: var(--text);
+    }
+    .wrap{max-width:980px;margin:0 auto;display:grid;gap:14px;}
+    .top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+    h2{margin:0;font-size:20px;}
+    .hint{opacity:.85;font-size:13.5px;line-height:1.45;margin:0;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    input{
+      padding:12px 14px;border-radius:12px;border:1px solid var(--border);
+      background:#0a2349;color:var(--text);min-width:280px;outline:none;
+    }
+    input::placeholder{color:rgba(238,246,255,.55);}
+    button{
+      padding:12px 14px;border-radius:12px;border:0;cursor:pointer;
+      font-weight:700;color:#fff;
+    }
+    .btn{background:linear-gradient(135deg,#2aa8ff,#5fd3ff);}
+    .btn2{background:linear-gradient(135deg,#1b6fd6,#2aa8ff);}
+    canvas{
+      width:100%;height:auto;border-radius:18px;
+      box-shadow:0 18px 50px rgba(0,0,0,.45);
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h2>Health Matrix – Ramadan Card</h2>
+      <p class="hint">
+        Write your name → Download PNG → Share on LinkedIn<br>
+        (Image auto-downloads + caption copied)
+      </p>
+    </div>
+  </div>
+
+  <div class="row">
+    <input id="name" placeholder="Type your name" maxlength="40" />
+    <button class="btn" id="download">Download PNG</button>
+    <button class="btn2" id="share">Share on LinkedIn</button>
+  </div>
+
+  <canvas id="c"></canvas>
+</div>
+
+<script>
+(() => {
+  const W = 1080, H = 1080;
+  const COMPANY = "Health Matrix | IT Healthcare";
+  const DEFAULT_NAME = "Your Name";
+
+  const C = {
+    blue0:"#071d3a",
+    blue1:"#0b3c7a",
+    blue2:"#2aa8ff",
+    cyan:"#5fd3ff",
+    white:"#eef6ff",
+    whiteSoft:"rgba(238,246,255,.9)",
+    ink:"rgba(0,0,0,.35)"
+  };
+
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d",{alpha:false});
+  canvas.width=W; canvas.height=H;
+
+  const nameInput=document.getElementById("name");
+  const downloadBtn=document.getElementById("download");
+  const shareBtn=document.getElementById("share");
+
+  function drawBackground(){
+    const g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,C.blue0);
+    g.addColorStop(.6,C.blue1);
+    g.addColorStop(1,"#041227");
+    ctx.fillStyle=g;
+    ctx.fillRect(0,0,W,H);
+
+    // soft glow
+    const rg=ctx.createRadialGradient(W/2,H*.18,10,W/2,H*.18,W*.55);
+    rg.addColorStop(0,"rgba(95,211,255,.25)");
+    rg.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+
+    // data waves
+    ctx.save();
+    ctx.globalAlpha=.35;
+    ctx.strokeStyle="rgba(95,211,255,.6)";
+    ctx.lineWidth=2;
+    for(let k=0;k<4;k++){
+      ctx.beginPath();
+      for(let x=0;x<=W;x+=20){
+        const t=x/W;
+        const y=H*(.32+k*.05)+Math.sin((t*3+k)*Math.PI)*18;
+        if(x===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // crescent
+    ctx.save();
+    const cx=W/2, cy=H*.16, R=44;
+    ctx.fillStyle=C.cyan;
+    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.fill();
+    ctx.globalCompositeOperation="destination-out";
+    ctx.beginPath(); ctx.arc(cx+18,cy-6,R,0,Math.PI*2); ctx.fill();
+    ctx.globalCompositeOperation="source-over";
+    ctx.restore();
+  }
+
+  function fitText(text,maxW,base,min){
+    let s=base;
+    while(s>=min){
+      ctx.font=`700 ${s}px Arial`;
+      if(ctx.measureText(text).width<=maxW) return s;
+      s-=2;
+    }
+    return min;
+  }
+
+  function drawText(name){
+    const n=(name||"").trim()||DEFAULT_NAME;
+
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.shadowColor=C.ink;
+    ctx.shadowBlur=14;
+
+    ctx.fillStyle=C.cyan;
+    ctx.font="700 64px Arial";
+    ctx.fillText("Ramadan Mubarak",W/2,H*.30);
+
+    ctx.shadowBlur=10;
+    ctx.fillStyle=C.whiteSoft;
+    ctx.font="500 34px Arial";
+    const lines=[
+      "As we welcome the holy month of Ramadan,",
+      "we wish you peace, prosperity, and continued success.",
+      "May this season inspire reflection, compassion, and innovation",
+      "in everything we build together."
+    ];
+    let y=H*.37;
+    for(const l of lines){ ctx.fillText(l,W/2,y); y+=46; }
+
+    const nameSize=fitText(n,W*.78,74,46);
+    ctx.shadowBlur=12;
+    ctx.fillStyle=C.white;
+    ctx.font=`700 ${nameSize}px Arial`;
+    ctx.fillText(n,W/2,H*.885);
+
+    ctx.shadowBlur=8;
+    ctx.fillStyle="rgba(238,246,255,.75)";
+    ctx.font="600 30px Arial";
+    ctx.fillText(COMPANY,W/2,H*.925);
+  }
+
+  function render(v){ drawBackground(); drawText(v); }
+  render("");
+
+  nameInput.addEventListener("input",e=>render(e.target.value));
+
+  downloadBtn.addEventListener("click",()=>{
+    canvas.toBlob(b=>{
+      const u=URL.createObjectURL(b);
+      const a=document.createElement("a");
+      a.download="health-matrix-ramadan-card.png";
+      a.href=u; a.click(); URL.revokeObjectURL(u);
+    },"image/png");
+  });
+
+  shareBtn.addEventListener("click",async()=>{
+    const n=(nameInput.value||"").trim()||DEFAULT_NAME;
+    const caption=
+`Ramadan Mubarak 🌙
+As we welcome the holy month of Ramadan, we wish you peace, prosperity, and continued success.
+
+— ${n}
+Health Matrix | IT Healthcare`;
+    try{await navigator.clipboard.writeText(caption);}catch{}
+    downloadBtn.click();
+    window.open("https://www.linkedin.com/feed/","_blank");
+    alert("Image downloaded + caption copied.\nPaste text and attach image on LinkedIn.");
+  });
+})();
+</script>
+</body>
+</html>
